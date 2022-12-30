@@ -85,40 +85,38 @@ public class ChatClient {
     /* Main method */
     public void run() throws IOException {
         STATE state = STATE.RUNNING;
-        int i;
-        String server_stc;
+        String server_msg;
         String[] token;
 
         while (state == STATE.RUNNING) {
             token = inServer.readLine().split(" ");
-            server_stc = "";
+            server_msg = "";
 
             switch (token[0]) {
                 case "MESSAGE":
-                    server_stc = token[1] + ": ";
-                    for (i = 2; i < token.length; ++i)
-                        server_stc += token[i] + " ";
+                    server_msg = "[SERVER]: " + token[1] + ": ";
+                    for (int i = 2; i < token.length; ++i)
+                        server_msg += token[i] + " ";
                     break;
                 case "NEWNICK":
-                    server_stc = token[1] + " changed nick to " + token[2];
+                    server_msg = "[SERVER]: " + token[1] + " changed nick to " + token[2] + "";
+                    break;
+                case "JOINED":
+                    server_msg = "[SERVER]: " + token[1] + " joined";
+                    break;
+                case "LEFT":
+                    server_msg = "[SERVER]: " + token[1] + " left";
                     break;
                 case "BYE":
                     state = STATE.QUIT;
-                    server_stc = "Until next time!\n";
+                    server_msg = "[SERVER]: Godspeed!";
                     break;
                 default:
-                    for (i = 0; i < token.length; ++i)
-                        server_stc += token[i] + " ";
+                    for (int i = 0; i < token.length; ++i)
+                        server_msg += token[i] + " ";
             }
 
-            printMessage(server_stc);
-        }
-
-        try {
-            Thread.sleep(1000);
-        }
-        catch (Exception e) {
-            System.out.println("Can't wait. Exiting...");
+            printMessage(server_msg + "\n");
         }
 
         clientSocket.close();
