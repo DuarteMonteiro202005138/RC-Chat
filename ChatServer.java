@@ -9,8 +9,11 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 public class ChatServer {
     /* Pre-allocated buffer for the received data */
@@ -76,7 +79,7 @@ public class ChatServer {
 
                         try {
                             sc = (SocketChannel)key.channel();
-                            boolean ok = processInput(sc);
+                            boolean ok = processInput(sc, selector, key);
 
                             /* If connection is dead, remove from selector and close it */
                             if (!ok) {
@@ -115,7 +118,7 @@ public class ChatServer {
     }
 
     /* Read message from socket and send it to stdout */
-    private static boolean processInput(SocketChannel sc) throws IOException {
+    private static boolean processInput(SocketChannel sc, Selector selector, SelectionKey key) throws IOException {
         /* Read message to buffer */
         buffer.clear();
         sc.read(buffer);
@@ -124,10 +127,62 @@ public class ChatServer {
         /* If no data, close connection */
         if (buffer.limit() == 0)
             return false;
-        
-        /* Decode and print message to stdout */
-        String message = decoder.decode(buffer).toString();
-        System.out.print(message);
+
+        if (key.attachment() == null)
+            Client newClient = new Client(key);
+
+        Client client = (Client)key.attachment();
+
+        String input = decoder.decode(buffer).toString();
+        buffer.flip();
+
+        String[] tokens = input.split(" ");
+        String server_msg;
+
+        if (input.charAt(0) == ' ')
+            server_msg = message(client, input);
+        else if (tokens[0].startsWith("/")) {
+            String command = tokens[0].replace("\n", "");
+            if (command.startsWith("//"))
+                server_msg = message(client, input.substring(1));
+            else {
+                Map<String, Function<String[], String>> commands = new HashMap<>();
+                commands.put("/nick", tokens -> nick(client, tokens));
+                commands.put("/join", tokens -> join(client, tokens));
+                commands.put("/leave", tokens -> leave(client, tokens));
+                commands.put("/bye", tokens -> bye(client, tokens));
+
+                server_msg = commands.getOrDefault(command, tokens -> "ERROR\n").apply(tokens);
+            }
+        }
+        else 
+            server_msg = message(client, input);
+
+        buffer.clear();
+        buffer.put(server_msg.getBytes());
+        buffer.flip();
+        sc.write(buffer);
         return true;
+    }
+
+    static String message(Client client, String input) {
+        if (client.state != STATE.INSIDE)
+            return "ERROR\n";
+        return String.format("MESSAGE %s %s", client.nick, input);
+    }
+
+    static String nick(Client client, String[] tokens) {
+        if (tokens.length != 2)
+            return "ERROR\n";
+        String newNick = tokens[1].replace("\n", "");
+        client.nick = newNick;
+        return "OK\n";
+    }
+
+    static String bye(Client client, String[] tokens) {
+        if (tokens.length != 1)
+            return "ERROR\n";
+        client.leaveRoom();
+        return "BYE\n";
     }
 }
