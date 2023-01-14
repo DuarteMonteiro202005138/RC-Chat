@@ -1,4 +1,5 @@
 import java.nio.channels.SelectionKey;
+import java.util.LinkedList;
 
 public class Client {
     public String nick;
@@ -13,7 +14,29 @@ public class Client {
         this.key = key;
     }
 
+    public String toString() {
+        return room == null ? nick + " null " + state + " " + key : nick + " " + room + " " + state + " " + key;
+    }
+
+    public void joinRoom(String room) {
+        if(ChatServer.rooms.containsKey(room))
+            ChatServer.rooms.get(room).add(this);
+        else {
+            LinkedList<Client> c = new LinkedList<Client>();
+            c.add(this);
+            ChatServer.rooms.put(room, c);
+        }
+            
+        if (this.room != null)
+            leaveRoom();
+        ChatServer.rooms.get(room).add(this);
+        this.room = room;
+        state = STATE.INSIDE;
+    }
+
     public void leaveRoom() {
+        ChatServer.rooms.get(room).remove(this);
+        room = null;
         state = STATE.OUTSIDE;
     }
 }
