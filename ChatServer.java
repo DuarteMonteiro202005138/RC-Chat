@@ -195,7 +195,7 @@ public class ChatServer {
     static String message(Client curClient, String message) {
         if(curClient.state != STATE.INSIDE)
             return ERR;
-        broadcast("MESSAGE " + curClient.nick + " " + message, curClient.room, curClient.nick);
+        broadcast("MESSAGE " + curClient.nick + " " + message, curClient.room, curClient);
         return "MESSAGE " + curClient.nick + " " + message;
     }
 
@@ -208,7 +208,7 @@ public class ChatServer {
             return ERR;
 
         if(curClient.state == STATE.INSIDE)
-            broadcast("NEWNICK " + curClient.nick + " " + newNick + "\n", curClient.room, curClient.nick);
+            broadcast("NEWNICK " + curClient.nick + " " + newNick + "\n", curClient.room, curClient);
         else
             curClient.state = STATE.OUTSIDE;
         curClient.nick = newNick;
@@ -274,27 +274,20 @@ public class ChatServer {
 
     static String joinRoom(String room, Client client) {
         client.joinRoom(room);
-        broadcast("JOINED " + client.nick + "\n", client.room, client.nick);
+        broadcast("JOINED " + client.nick + "\n", client.room, client);
         return room;
     }
 
     static void leaveRoom(Client client) {
         if(client.room == null)
             return;
-        broadcast("LEFT " + client.nick + "\n", client.room, client.nick);
+        broadcast("LEFT " + client.nick + "\n", client.room, client);
         client.leaveRoom();
     }
 
     static void leaveChat(Client client) {
         client.key.attach(null);
         clients.remove(client);
-    }
-
-    static Client findClient(String toFind) {
-        for(Client client: clients)
-            if(client.nick.equals(toFind))
-                return client;
-        return null;
     }
 
     static boolean containsNick(String toFind) {
@@ -304,36 +297,37 @@ public class ChatServer {
         return false;
     }
 
-    static void broadcast(String message, String room, String exceptThisOne) {
+    static void broadcast(String message, String room, Client og) {
         if(room == null)
             return;
-        try {
-            for(Client client: rooms.get(room)) {
-                if(client.nick.equals(exceptThisOne))
-                    continue;
-                SocketChannel ch = (SocketChannel)client.key.channel();
-                buffer.clear();
-                buffer.put(message.getBytes());
-                buffer.flip();
+        for(Client client: rooms.get(room)) {
+            if(client.equals(og))
+                continue;
+            SocketChannel ch = (SocketChannel)client.key.channel();
+            buffer.clear();
+            buffer.put(message.getBytes());
+            buffer.flip();
+            try {
                 ch.write(buffer);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-		}
-		catch(Exception e) {
-			System.err.println(e);
-		}
+        }
     }
 
-    static void sendPrivate(String message, String to) {
-        try
-		{
-            SocketChannel ch = (SocketChannel)findClient(to).key.channel();
+    static void sendPrivate(String message, String dest) {
+        try {
+            Client c = null;
+            for(Client client: clients)
+                if(client.nick.equals(dest))
+                    c = client;
+            SocketChannel ch = (SocketChannel)c.key.channel();
             buffer.clear();
             buffer.put(message.getBytes());
             buffer.flip();
             ch.write(buffer);
 		}
-		catch(Exception e)
-		{
+		catch(Exception e) {
 			System.err.println(e);
 		}
     }

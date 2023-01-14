@@ -19,6 +19,8 @@ public class Client {
     }
 
     public void joinRoom(String room) {
+        if (this.room != null)
+            leaveRoom();
         if(ChatServer.rooms.containsKey(room))
             ChatServer.rooms.get(room).add(this);
         else {
@@ -26,10 +28,6 @@ public class Client {
             c.add(this);
             ChatServer.rooms.put(room, c);
         }
-            
-        if (this.room != null)
-            leaveRoom();
-        ChatServer.rooms.get(room).add(this);
         this.room = room;
         state = STATE.INSIDE;
     }
