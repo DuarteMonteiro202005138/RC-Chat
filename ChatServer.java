@@ -192,8 +192,6 @@ public class ChatServer {
         return true;
     }
 
-    /* Main Methods */
-
     static String message(Client curClient, String message) {
         if(curClient.state != STATE.INSIDE)
             return ERR;
